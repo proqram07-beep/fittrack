@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitTrack - Kalori & Məşq İzləyicisi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white font-sans pb-20">
+
+    <!-- Header -->
+    <header class="p-4 bg-gray-800 flex justify-between items-center border-b border-gray-700 sticky top-0 z-50">
+        <h1 class="text-xl font-bold text-green-400"><i class="fa-solid fa-bolt mr-2"></i>FitTrack MVP</h1>
+        <div id="authStatus" class="text-xs bg-gray-700 px-3 py-1 rounded-full text-gray-300">
+            Sessiya Yoxlanılır...
+        </div>
+    </header>
+
+    <!-- App Container -->
+    <main class="max-w-md mx-auto p-4 space-y-6">
+
+        <!-- Auth Section -->
+        <section id="authSection" class="bg-gray-800 p-6 rounded-2xl border border-gray-700 space-y-4">
+            <h2 class="text-lg font-semibold text-center text-gray-200">Hesaba Giriş / Qeydiyyat</h2>
+            <p class="text-xs text-gray-400 text-center">Məlumatlarınızın 100% buludda saxlanılması üçün e-poçtla daxil olun.</p>
+            <input type="email" id="emailInput" placeholder="E-poçt ünvanınız" class="w-full bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-green-500">
+            <input type="password" id="passwordInput" placeholder="Şifrəniz" class="w-full bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-green-500">
+            <div class="flex gap-2">
+                <button onclick="handleLogin()" class="w-1/2 bg-green-500 hover:bg-green-600 text-black font-bold py-2.5 rounded-xl transition text-sm">Giriş Et</button>
+                <button onclick="handleSignUp()" class="w-1/2 bg-gray-700 hover:bg-gray-600 font-semibold py-2.5 rounded-xl transition text-sm">Qeydiyyat</button>
+            </div>
+        </section>
+
+        <!-- Main Dashboard -->
+        <div id="mainDashboard" class="hidden space-y-6">
+            
+            <!-- Summary Card -->
+            <section class="bg-gray-800 p-5 rounded-2xl border border-gray-700 flex justify-between items-center">
+                <div>
+                    <p class="text-xs text-gray-400">Günlük Hədəf</p>
+                    <p class="text-2xl font-black text-green-400" id="currentCalories">0 / 2200 kcal</p>
+                </div>
+                <div class="w-12 h-12 rounded-full border-4 border-green-500 flex items-center justify-center text-xs font-bold">
+                    <span id="caloriePercent">0%</span>
+                </div>
+            </section>
+
+            <!-- Food / Calorie Add Section -->
+            <section class="bg-gray-800 p-5 rounded-2xl border border-gray-700 space-y-3">
+                <h3 class="text-md font-bold text-gray-200"><i class="fa-solid fa-utensils text-green-400 mr-2"></i>Yemək / Kalori Əlavə Et</h3>
+                <input type="text" id="foodName" placeholder="Yeməyin adı (məs: Toyuq Filesi)" class="w-full bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="foodCalories" placeholder="Kalori (kcal)" class="bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none">
+                    <input type="number" id="foodProtein" placeholder="Zülal (g)" class="bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none">
+                </div>
+                <button onclick="addLog()" class="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-3 rounded-xl transition text-sm">
+                    Bazada Yadda Saxla
+                </button>
+            </section>
+
+            <!-- Daily Logs List -->
+            <section class="bg-gray-800 p-5 rounded-2xl border border-gray-700 space-y-3">
+                <h3 class="text-md font-bold text-gray-200"><i class="fa-solid fa-list-check text-green-400 mr-2"></i>Bugünkü Qeydlər</h3>
+                <div id="logsContainer" class="space-y-2 text-sm text-gray-300">
+                    <p class="text-xs text-gray-500">Hələ heç bir məlumat daxil edilməyib.</p>
+                </div>
+            </section>
+
+            <!-- Sign Out Button -->
+            <button onclick="handleSignOut()" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold py-2.5 rounded-xl border border-red-500/30 transition text-sm">
+                Çıxış Et
+            </button>
+        </div>
+
+    </main>
+
+    <script>
+        const SUPABASE_URL = "https://llrscnukrgjhzgeuiezw.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_UerNdChXeendM4V0F2C3wg_PYIg_AFJ";
+        
+        let _supabase = null;
+        let currentUser = null;
+
+        window.addEventListener('load', async () => {
+            if (window.supabase && window.supabase.createClient) {
+                _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                console.error("Supabase yüklenemedi");
+                return;
+            }
+
+            const { data: { session } } = await _supabase.auth.getSession();
+            updateUI(session ? session.user : null);
+
+            _supabase.auth.onAuthStateChange((_event, session) => {
+                updateUI(session ? session.user : null);
+            });
+        });
+
+        function updateUI(user) {
+            currentUser = user;
+            const authStatus = document.getElementById('authStatus');
+            const authSection = document.getElementById('authSection');
+            const mainDashboard = document.getElementById('mainDashboard');
+
+            if (user) {
+                authStatus.textContent = user.email;
+                authSection.classList.add('hidden');
+                mainDashboard.classList.remove('hidden');
+                fetchLogs();
+            } else {
+                authStatus.textContent = "Daxil olunmayıb";
+                authSection.classList.remove('hidden');
+                mainDashboard.classList.add('hidden');
+            }
+        }
+
+        async function handleSignUp() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            const { data, error } = await _supabase.auth.signUp({ email, password });
+            if (error) alert(error.message);
+            else alert("Qeydiyyat uğurludur! Giriş edə bilərsiniz.");
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+            if (error) alert(error.message);
+        }
+
+        async function handleSignOut() {
+            await _supabase.auth.signOut();
+        }
+
+        async function addLog() {
+            if (!currentUser) return;
+            const foodName = document.getElementById('foodName').value;
+            const calories = parseInt(document.getElementById('foodCalories').value) || 0;
+            const protein = parseFloat(document.getElementById('foodProtein').value) || 0;
+
+            if (!foodName || calories <= 0) {
+                alert("Zəhmət olmasa yemək adını və kaloriləri doğru qeyd edin.");
+                return;
+            }
+
+            const { error } = await _supabase.from('daily_logs').insert([{
+                user_id: currentUser.id,
+                food_name: foodName,
+                calories: calories,
+                protein: protein
+            }]);
+
+            if (error) {
+                alert("Xəta baş verdi: " + error.message);
+            } else {
+                document.getElementById('foodName').value = '';
+                document.getElementById('foodCalories').value = '';
+                document.getElementById('foodProtein').value = '';
+                fetchLogs();
+            }
+        }
+
+        async function fetchLogs() {
+            if (!currentUser) return;
+
+            const { data, error } = await _supabase
+                .from('daily_logs')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            const container = document.getElementById('logsContainer');
+            container.innerHTML = '';
+
+            let totalCalories = 0;
+
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-500">Bugünə aid heç bir məlumat daxil edilməyib.</p>`;
+            } else {
+                data.forEach(log => {
+                    totalCalories += log.calories;
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center bg-gray-900 p-3 rounded-xl border border-gray-700/50';
+                    item.innerHTML = `
+                        <div>
+                            <p class="font-semibold text-gray-200">${log.food_name}</p>
+                            <p class="text-xs text-gray-400">${log.protein || 0}g Zülal</p>
+                        </div>
+                        <span class="font-bold text-green-400">+${log.calories} kcal</span>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+
+            document.getElementById('currentCalories').textContent = `${totalCalories} / 2200 kcal`;
+            const percent = Math.min(Math.round((totalCalories / 2200) * 100), 100);
+            document.getElementById('caloriePercent').textContent = `${percent}%`;
+        }
+    </script>
+</body>
+</html>
