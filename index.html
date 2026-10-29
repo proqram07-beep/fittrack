@@ -30,9 +30,8 @@
 
             <!-- API Key Input -->
             <section class="bg-gray-800 p-4 rounded-2xl border border-gray-700 space-y-2">
-                <label class="text-xs text-gray-400 font-semibold">Google Gemini API Açarınız:</label>
+                <label class="text-xs text-gray-400 font-semibold">Google Gemini API Açarınız (İstəyə bağlı):</label>
                 <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-gray-900 border border-gray-700 p-2.5 rounded-xl text-sm focus:outline-none focus:border-green-500">
-                <p class="text-[10px] text-gray-500">Açar brauzerinizin local yaddaşında saxlanılır.</p>
             </section>
 
             <!-- Summary Card -->
@@ -47,14 +46,29 @@
                 </div>
             </section>
 
-            <!-- AI Food Query Section -->
+            <!-- Manual Food Input Section (ƏLLƏ ƏLAVƏ ET) -->
+            <section class="bg-gray-800 p-5 rounded-2xl border border-gray-700 space-y-3">
+                <h2 class="text-md font-bold text-gray-200 flex items-center gap-2">
+                    <i class="fa-solid fa-utensils text-green-400"></i> Əllə Yemək Əlavə Et
+                </h2>
+                <input type="text" id="manualFoodName" placeholder="Yeməyin adı (məs: Toyuq döş əti)" class="w-full bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-green-500">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="manualCalories" placeholder="Kalori (kcal)" class="bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-green-500">
+                    <input type="number" id="manualProtein" placeholder="Zülal (g)" class="bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-green-500">
+                </div>
+                <button onclick="addManualFood()" class="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-3 rounded-xl transition text-sm">
+                    Birbaşa Əlavə Et
+                </button>
+            </section>
+
+            <!-- AI Food Query Section (GEMINI İLƏ HESABLA) -->
             <section class="bg-gray-800 p-5 rounded-2xl border border-gray-700 space-y-4">
                 <h2 class="text-md font-bold text-gray-200 flex items-center gap-2">
-                    <i class="fa-solid fa-wand-magic-sparkles text-green-400"></i> Gemini AI Yemək Hesablayıcı
+                    <i class="fa-solid fa-wand-magic-sparkles text-green-400"></i> Gemini AI ilə Hesabla
                 </h2>
                 
                 <div class="grid grid-cols-3 gap-2">
-                    <input type="text" id="foodNameInput" placeholder="Yeməyin adı (məs: Toyuq)" class="col-span-2 bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-green-500">
+                    <input type="text" id="foodNameInput" placeholder="Yeməyin adı" class="col-span-2 bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-green-500">
                     <input type="number" id="foodGramInput" placeholder="Qram (q)" class="col-span-1 bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-green-500">
                 </div>
 
@@ -63,8 +77,8 @@
                     <input type="file" id="imageInput" accept="image/*" class="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-gray-700 file:text-green-400 hover:file:bg-gray-600">
                 </div>
 
-                <button onclick="analyzeFoodWithAI()" id="analyzeBtn" class="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-3 rounded-xl transition text-sm flex justify-center items-center gap-2">
-                    <span>Gemini ilə Hesabla</span>
+                <button onclick="analyzeFoodWithAI()" id="analyzeBtn" class="w-full bg-gray-700 hover:bg-gray-600 text-green-400 font-bold py-3 rounded-xl transition text-sm flex justify-center items-center gap-2 border border-green-500/30">
+                    <span>AI ilə Avtomatik Hesabla</span>
                     <i class="fa-solid fa-calculator"></i>
                 </button>
 
@@ -154,13 +168,11 @@
     </main>
 
     <script>
-        // LocalStorage Data Management
         let foodLogs = JSON.parse(localStorage.getItem('fittrack_food_logs')) || [];
         let workoutLogs = JSON.parse(localStorage.getItem('fittrack_workout_logs')) || [];
         let tempAiParsed = null;
         let chartInstance = null;
 
-        // Initialize UI
         window.addEventListener('load', () => {
             document.getElementById('apiKeyInput').value = localStorage.getItem('gemini_key') || '';
             document.getElementById('apiKeyInput').addEventListener('input', (e) => {
@@ -171,7 +183,6 @@
             initChart();
         });
 
-        // Tab Switching Logic
         function switchTab(tab) {
             const nutTab = document.getElementById('nutritionTab');
             const workTab = document.getElementById('workoutTab');
@@ -192,7 +203,33 @@
             }
         }
 
-        // --- FOOD & GEMINI LOGIC ---
+        // --- MANUAL FOOD ADDITION (ƏLLƏ ƏLAVƏ ET) ---
+        function addManualFood() {
+            const name = document.getElementById('manualFoodName').value.trim();
+            const cal = parseInt(document.getElementById('manualCalories').value) || 0;
+            const prot = parseFloat(document.getElementById('manualProtein').value) || 0;
+
+            if (!name || cal <= 0) {
+                alert("Zəhmət olmasa yeməyin adını və kalorisini daxil edin.");
+                return;
+            }
+
+            foodLogs.unshift({
+                id: Date.now(),
+                name: name,
+                calories: cal,
+                protein: prot
+            });
+
+            localStorage.setItem('fittrack_food_logs', JSON.stringify(foodLogs));
+            renderFoodLogs();
+
+            document.getElementById('manualFoodName').value = '';
+            document.getElementById('manualCalories').value = '';
+            document.getElementById('manualProtein').value = '';
+        }
+
+        // --- GEMINI AI LOGIC ---
         async function analyzeFoodWithAI() {
             const apiKey = document.getElementById('apiKeyInput').value.trim();
             const foodName = document.getElementById('foodNameInput').value.trim();
@@ -201,7 +238,7 @@
             const btn = document.getElementById('analyzeBtn');
 
             if (!apiKey) {
-                alert("Zəhmət olmasa Google Gemini API açarınızı daxil edin!");
+                alert("AI ilə hesablamaq üçün yuxarıdakı xanaya Google Gemini API açarınızı yazmalısınız.");
                 return;
             }
 
@@ -215,7 +252,7 @@
 
             try {
                 let parts = [];
-                let prompt = `Yemək: ${foodName || 'Şəkildəki yemək'}. Məqsad: ${foodGram ? foodGram + ' qram' : 'Standart porsiya'} üçün kalori və makroları dəqiq təxmin et. Cavabı yalnız aşağıdakı dəqiq JSON formatında qaytar, başqa heç bir mətn yazma:\n{"food": "${foodName || 'Şəkildəki yemək'}", "gram": ${foodGram || 100}, "calories": 250, "protein": 30, "carbs": 20, "fat": 5}`;
+                let prompt = `Yemək: ${foodName || 'Şəkildəki yemək'}. Məqsəd: ${foodGram ? foodGram + ' qram' : 'Standart porsiya'} üçün kalori və makroları dəqiq təxmin et. Cavabı yalnız aşağıdakı dəqiq JSON formatında qaytar:\n{"food": "${foodName || 'Yemək'}", "gram": ${foodGram || 100}, "calories": 250, "protein": 30, "carbs": 20, "fat": 5}`;
 
                 parts.push({ text: prompt });
 
@@ -232,13 +269,19 @@
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: parts }] })
+                    body: JSON.stringify({
+                        contents: [{ parts: parts }],
+                        generationConfig: { response_mime_type: "application/json" }
+                    })
                 });
 
                 const data = await response.json();
-                let rawText = data.candidates[0].content.parts[0].text;
-                rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-                
+
+                if (!response.ok) {
+                    throw new Error(data.error ? data.error.message : "API Sorğu xətası");
+                }
+
+                let rawText = data.candidates[0].content.parts[0].text.trim();
                 const parsed = JSON.parse(rawText);
                 tempAiParsed = parsed;
 
@@ -251,10 +294,10 @@
 
             } catch (err) {
                 console.error(err);
-                alert("Analiz xətası baş verdi. API açarınızı və girişləri yoxlayın.");
+                alert("Xəta baş verdi: " + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = `<span>Gemini ilə Hesabla</span> <i class="fa-solid fa-calculator"></i>`;
+                btn.innerHTML = `<span>AI ilə Avtomatik Hesabla</span> <i class="fa-solid fa-calculator"></i>`;
             }
         }
 
