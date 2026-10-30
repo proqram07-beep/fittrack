@@ -64,6 +64,16 @@
                     <p class="text-xs text-gray-500">Hələ heç bir yemək daxil edilməyib.</p>
                 </div>
             </section>
+
+            <!-- Nutrition History Section -->
+            <section class="bg-gray-800 p-5 rounded-2xl border border-gray-700 space-y-3">
+                <h3 class="text-md font-bold text-gray-200 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-green-400"></i> Keçmiş Günlərin Tarixçəsi
+                </h3>
+                <div id="nutritionHistoryContainer" class="space-y-2 text-xs text-gray-300">
+                    <p class="text-gray-500">Keçmiş günlərə aid qeyd yoxdur.</p>
+                </div>
+            </section>
         </div>
 
         <!-- ================= İDMAN BÖLMƏSİ ================= -->
@@ -120,7 +130,9 @@
 
             <!-- Gym History Logs -->
             <section class="bg-gray-800 p-5 rounded-2xl border border-gray-700 space-y-3">
-                <h3 class="text-sm font-bold text-gray-200">Keçmiş Məşq Qeydləri</h3>
+                <h3 class="text-sm font-bold text-gray-200 flex items-center gap-2">
+                    <i class="fa-solid fa-history text-green-400"></i> Məşq Tarixçəsi
+                </h3>
                 <div id="workoutLogsContainer" class="space-y-2 text-xs text-gray-300">
                     <p class="text-gray-500">Hələ məşq qeydə alınmayıb.</p>
                 </div>
@@ -131,12 +143,42 @@
     </main>
 
     <script>
+        const getTodayDateStr = () => new Date().toISOString().split('T')[0];
+
+        let lastDate = localStorage.getItem('fittrack_last_date') || getTodayDateStr();
         let foodLogs = JSON.parse(localStorage.getItem('fittrack_food_logs')) || [];
+        let nutritionHistory = JSON.parse(localStorage.getItem('fittrack_nutrition_history')) || [];
         let workoutLogs = JSON.parse(localStorage.getItem('fittrack_workout_logs')) || [];
         let chartInstance = null;
 
+        // Gün dəyişdikdə avtomatik təmizləmə və arxivləmə
+        function checkAndResetDailyData() {
+            const currentDate = getTodayDateStr();
+            if (lastDate !== currentDate) {
+                if (foodLogs.length > 0) {
+                    let totalCal = foodLogs.reduce((acc, log) => acc + log.calories, 0);
+                    let totalProt = foodLogs.reduce((acc, log) => acc + log.protein, 0);
+                    
+                    nutritionHistory.unshift({
+                        date: lastDate,
+                        calories: totalCal,
+                        protein: totalProt,
+                        itemsCount: foodLogs.length
+                    });
+                    localStorage.setItem('fittrack_nutrition_history', JSON.stringify(nutritionHistory));
+                }
+
+                foodLogs = [];
+                localStorage.setItem('fittrack_food_logs', JSON.stringify(foodLogs));
+                localStorage.setItem('fittrack_last_date', currentDate);
+                lastDate = currentDate;
+            }
+        }
+
         window.addEventListener('load', () => {
+            checkAndResetDailyData();
             renderFoodLogs();
+            renderNutritionHistory();
             renderWorkoutLogs();
             initChart();
         });
@@ -162,6 +204,7 @@
         }
 
         function addManualFood() {
+            checkAndResetDailyData();
             const name = document.getElementById('manualFoodName').value.trim();
             const cal = parseInt(document.getElementById('manualCalories').value) || 0;
             const prot = parseFloat(document.getElementById('manualProtein').value) || 0;
@@ -222,6 +265,31 @@
             document.getElementById('caloriePercent').textContent = `${percent}%`;
         }
 
+        function renderNutritionHistory() {
+            const container = document.getElementById('nutritionHistoryContainer');
+            container.innerHTML = '';
+
+            if (nutritionHistory.length === 0) {
+                container.innerHTML = `<p class="text-gray-500">Keçmiş günlərə aid qeyd yoxdur.</p>`;
+            } else {
+                nutritionHistory.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'flex justify-between items-center bg-gray-900 p-3 rounded-xl border border-gray-700/50';
+                    row.innerHTML = `
+                        <div>
+                            <p class="font-semibold text-green-400">${item.date}</p>
+                            <p class="text-[10px] text-gray-400">${item.itemsCount} yemək qeydə alınıb</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-gray-200">${item.calories} kcal</p>
+                            <p class="text-[10px] text-gray-400">${item.protein}g zülal</p>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            }
+        }
+
         function addWorkoutLog() {
             const day = document.getElementById('workoutDaySelect').value;
             const machine = document.getElementById('machineNameInput').value.trim();
@@ -239,7 +307,7 @@
                 machine: machine,
                 weight: weight,
                 reps: reps,
-                date: new Date().toLocaleDateString('az-AZ', { month: 'short', day: 'numeric' })
+                date: new Date().toLocaleDateString('az-AZ', { year: 'numeric', month: 'short', day: 'numeric' })
             });
 
             localStorage.setItem('fittrack_workout_logs', JSON.stringify(workoutLogs));
@@ -271,7 +339,7 @@
                     item.innerHTML = `
                         <div>
                             <p class="font-semibold text-green-400">${log.machine} (${log.weight} Kq)</p>
-                            <p class="text-[10px] text-gray-400">${log.day} • ${log.reps} təkrar • ${log.date}</p>
+                            <p class="text-[10px] text-gray-400">${log.day} • ${log.reps} təkrar • Tarix: ${log.date}</p>
                         </div>
                         <button onclick="deleteWorkoutLog(${log.id})" class="text-red-400 hover:text-red-500 text-xs p-1 transition">
                             <i class="fa-solid fa-trash-can"></i>
